@@ -3,6 +3,7 @@ import mysql from "mysql2/promise";
 import mqtt from "mqtt";
 import cors from "cors";
 import crypto from "crypto";
+import WebSocket from "ws";
 
 const app = express();
 app.use(cors({ origin: "http://localhost:5173"}));
@@ -17,6 +18,34 @@ const db = {
 
 const mqttHost = "192.168.1.12";
 const mqttPort = 1883;
+
+const wss = new WebSocket.Server({ noServer: true });
+let connectedClients = [];
+
+wss.on("connection", (ws) => {
+  console.log("Nuevo cliente conectado");
+  connectedClients.push(ws);
+
+  ws.on("message", (message) => {
+    console.log("Mensaje recibido:", message);
+  });
+
+  ws.on("close", () => {
+    console.log("Cliente desconectado");
+    connectedClients = connectedClients.filter((client) => client !== ws);
+  });
+});
+
+app.server = app.listen(4000, () => {
+  console.log("Servidor HTTP y WebSocket corriendo en el puerto 4000");
+});
+
+app.server.on("upgrade", (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit("connection", ws, request);
+  });
+});
+
 
 app.post("/login", async (request, response) => {
   const { username, password } = request.body;
@@ -91,6 +120,57 @@ app.post("/mqtt/publicar", async (request, response) => {
   }
 });
 
-app.listen(4000, () => {
-  console.log("Servidor corriento en el puerto 4000");
+app.post("/mqtt/suscribirse", async (request, response) => {
+  const { username, password, topic } = request.body;
+
+  try {
+    const salt = "salt";
+    const passwordHash = crypto
+      .createHash("sha256")
+      .update(password + salt)
+      .digest("hex");
+
+    const connection = await mysql.createConnection(db);
+    const [rows] = await connection.execute(
+      "SELECT * FROM mqtt_user WHERE username = ? AND password_hash = ?",
+      [username, passwordHash]
+    );
+    connection.end();
+
+    if (rows.length === 0) {
+      return response.status(401).json({ error: "Credenciales incorrectas" });
+    }
+
+    const client = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`, {
+      username,
+      password,
+    });
+
+    client.on("connect", () => {
+      client.subscribe(topic, (error) => {
+        if (error) {
+          return response
+            .status(500)
+            .json({ error: "Error al suscribirse al topic" });
+        }
+        response.json({ message: `Suscrito exitosamente al topic: ${topic}` });
+      });
+    });
+
+    client.on("error", (error) => {
+      response.status(500).json({ error: "Error al conectar al broker" });
+    });
+
+     // Escuchar mensajes recibidos en el topic y enviar al frontend
+     client.on("message", (receivedTopic, message) => {
+      console.log(`Mensaje recibido en ${receivedTopic}: ${message.toString()}`);
+
+      // Enviar el mensaje a todos los clientes conectados por WebSocket
+      connectedClients.forEach((client) => {
+        client.send(JSON.stringify({ topic: receivedTopic, message: message.toString() }));
+      });
+    });
+  } catch (error) {
+    response.status(500).json({ error: "Error al procesar la solicitud" });
+  }
 });
