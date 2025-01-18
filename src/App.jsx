@@ -6,6 +6,7 @@ import SubscribeTopic from "./components/Suscribe";
 import Navbar from "./components/Navbar";
 import { ToastContainer } from 'react-toastify';
 import "./App.css";
+import Datos from "./components/Datos";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -42,6 +43,16 @@ function App() {
               <SubscribeTopic credentials={credentials} />
             ) : (
               <Navigate to="/login" />
+            )
+          } 
+        />
+        <Route 
+          path="/datos" 
+          element={
+            isLoggedIn ? (
+              <Datos credentials={credentials} />
+            ) : (
+              <Navigate to="/datos" />
             )
           } 
         />

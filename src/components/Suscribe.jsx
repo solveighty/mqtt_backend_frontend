@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { toast } from 'react-toastify';

@@ -29,6 +29,13 @@ function Navbar() {
             <Radio size={20} />
             Suscribirse
           </Link>
+          <Link 
+            to="/datos" 
+            className="flex items-center gap-2 hover:bg-blue-700 px-3 py-2 rounded-lg transition-colors"
+          >
+            <Radio size={20} />
+            Datos
+          </Link>
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 hover:bg-red-600 px-3 py-2 rounded-lg transition-colors"
