@@ -141,36 +141,41 @@ app.post("/mqtt/suscribirse", async (request, response) => {
       return response.status(401).json({ error: "Credenciales incorrectas" });
     }
 
-    const client = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`, {
-      username,
-      password,
-    });
-
-    client.on("connect", () => {
-      client.subscribe(topic, (error) => {
-        if (error) {
-          return response
-            .status(500)
-            .json({ error: "Error al suscribirse al topic" });
-        }
-        response.json({ message: `Suscrito exitosamente al topic: ${topic}` });
+    // Verificar si ya existe un cliente MQTT conectado
+    if (!global.mqttClient) {
+      global.mqttClient = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`, {
+        username,
+        password,
       });
-    });
 
-    client.on("error", (error) => {
-      response.status(500).json({ error: "Error al conectar al broker" });
-    });
+      global.mqttClient.on("connect", () => {
+        console.log("Conexión al broker MQTT exitosa");
 
-     // Escuchar mensajes recibidos en el topic y enviar al frontend
-     client.on("message", (receivedTopic, message) => {
-      console.log(`Mensaje recibido en ${receivedTopic}: ${message.toString()}`);
+        // Escuchar mensajes del broker
+        global.mqttClient.on("message", (receivedTopic, message) => {
+          console.log(`Mensaje recibido en ${receivedTopic}: ${message.toString()}`);
 
-      // Enviar el mensaje a todos los clientes conectados por WebSocket
-      connectedClients.forEach((client) => {
-        client.send(JSON.stringify({ topic: receivedTopic, message: message.toString() }));
+          // Enviar el mensaje a todos los clientes WebSocket conectados
+          connectedClients.forEach((client) => {
+            client.send(JSON.stringify({ topic: receivedTopic, message: message.toString() }));
+          });
+        });
       });
+
+      global.mqttClient.on("error", (error) => {
+        console.error("Error al conectar al broker MQTT:", error);
+      });
+    }
+
+    // Suscribirse al tópico
+    global.mqttClient.subscribe(topic, (error) => {
+      if (error) {
+        return response.status(500).json({ error: "Error al suscribirse al tópico" });
+      }
+      response.json({ message: `Suscrito exitosamente al tópico: ${topic}` });
     });
   } catch (error) {
+    console.error("Error al procesar la solicitud:", error);
     response.status(500).json({ error: "Error al procesar la solicitud" });
   }
 });
