@@ -9,6 +9,24 @@ const app = express();
 app.use(cors({ origin: "http://localhost:5173"}));
 app.use(express.json());
 
+const games = [
+  { game: "Juego 1", players: 0 },
+  { game: "Juego 2", players: 0 },
+  { game: "Juego 3", players: 0 },
+  { game: "Juego 4", players: 0 },
+  { game: "Juego 5", players: 0 },
+];
+
+// Función para actualizar los datos de jugadores conectados
+function simulateData() {
+  // Cambiar aleatoriamente la cantidad de jugadores en cada juego
+  games.forEach((game) => {
+    game.players = Math.floor(Math.random() * 100); // Número aleatorio de jugadores entre 0 y 100
+  });
+
+  return games;
+}
+
 const db = {
   host: "192.168.1.12",
   user: "root",
@@ -18,6 +36,18 @@ const db = {
 
 const mqttHost = "192.168.1.12";
 const mqttPort = 1883;
+const client = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`);
+
+// Publicar los datos simulados cada 2 segundos
+setInterval(() => {
+  const simulatedData = simulateData();
+  client.publish("/datos", JSON.stringify(simulatedData), (error) => {
+    if (error) {
+      console.error("Error al publicar datos:", error);
+    }
+  });
+  console.log("Datos publicados:", simulatedData);
+}, 2000);
 
 const wss = new WebSocket.Server({ noServer: true });
 let connectedClients = [];
@@ -157,6 +187,7 @@ app.post("/mqtt/suscribirse", async (request, response) => {
 
           // Enviar el mensaje a todos los clientes WebSocket conectados
           connectedClients.forEach((client) => {
+            console.log("Enviando mensaje al cliente WebSocket...");
             client.send(JSON.stringify({ topic: receivedTopic, message: message.toString() }));
           });
         });
@@ -172,6 +203,7 @@ app.post("/mqtt/suscribirse", async (request, response) => {
       if (error) {
         return response.status(500).json({ error: "Error al suscribirse al tópico" });
       }
+      console.log(`Suscrito exitosamente al tópico: ${topic}`);
       response.json({ message: `Suscrito exitosamente al tópico: ${topic}` });
     });
   } catch (error) {
