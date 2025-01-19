@@ -227,3 +227,40 @@ app.post("/mqtt/publicar", async (request, response) => {
     response.status(500).json({ error: "Error al procesar la solicitud" });
   }
 });
+
+app.post("/register", async (request, response) => {
+  const { username, password } = request.body;
+
+  // Validar que los campos requeridos estén presentes
+  if (!username || !password) {
+    return response.status(400).json({ error: "El nombre de usuario y la contraseña son obligatorios" });
+  }
+
+  try {
+    // Generar un hash de la contraseña con un salt
+    const salt = "salt"; // Idealmente, usa un salt único para cada usuario
+    const passwordHash = crypto
+      .createHash("sha256")
+      .update(password + salt)
+      .digest("hex");
+
+    const connection = await mysql.createConnection(db);
+
+    // Insertar el nuevo usuario en la base de datos
+    await connection.execute(
+      "INSERT INTO mqtt_user (username, password_hash, salt, is_superuser, created) VALUES (?, ?, ?, ?, NOW())",
+      [username, passwordHash, salt, 0] // `is_superuser` se configura como 0 (usuario normal por defecto)
+    );
+
+    connection.end();
+
+    response.json({ message: "Usuario registrado con éxito" });
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") {
+      response.status(409).json({ error: "El nombre de usuario ya está en uso" });
+    } else {
+      console.error("Error al registrar el usuario:", error);
+      response.status(500).json({ error: "Error al registrar el usuario" });
+    }
+  }
+});
