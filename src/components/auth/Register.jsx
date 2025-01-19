@@ -4,30 +4,28 @@ import { User, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
 
-function Login({ setIsLoggedIn, setCredentials }) {
+function Register() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:4000/login", {
+      const response = await axios.post("http://localhost:4000/register", {
         username,
         password,
       });
 
-      if (response.status === 200) {
-        setIsLoggedIn(true);
-        setCredentials({ username, password });
-        navigate("/publish");
-        toast.success('Inicio de sesión exitoso', { autoClose: 2000, closeOnClick: true, hideProgressBar: true });
+      if (response.status === 201) {
+        navigate("/login");
       } else {
-        toast.error('Credenciales incorrectas', { autoClose: 2000, closeOnClick: true, hideProgressBar: true });
+        toast.success('Usuario registrado', { autoClose: 2000, closeOnClick: true, hideProgressBar: true });
+        navigate("/login");
       }
     } catch (err) {
-      toast.error('Error al iniciar sesión', { autoClose: 2000, closeOnClick: true, hideProgressBar: true });
+      toast.error('Error al registrar usuario', { autoClose: 2000, closeOnClick: true, hideProgressBar: true });
     } finally {
       setLoading(false);
     }
@@ -37,7 +35,7 @@ function Login({ setIsLoggedIn, setCredentials }) {
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-sm p-6 bg-white shadow-lg rounded-lg animate-fade-in-down">
         <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">
-          Iniciar Sesión
+          Regístrate
         </h1>
         <div className="space-y-4">
           <div className="relative">
@@ -61,20 +59,29 @@ function Login({ setIsLoggedIn, setCredentials }) {
             />
           </div>
           <button
-            onClick={handleLogin}
+            onClick={handleRegister}
             disabled={loading}
             className={`w-full py-2 text-white font-bold rounded-lg transition duration-300 ${
               loading
                 ? "bg-blue-300 cursor-not-allowed"
-                : "bg-blue-500 hover:bg-blue-600"
+                : "bg-green-500 hover:bg-green-600"
             }`}
           >
-            {loading ? "Cargando..." : "Iniciar Sesión"}
+            {loading ? "Cargando..." : "Registrarse"}
           </button>
         </div>
+        <p className="mt-4 text-center text-gray-600">
+          ¿Ya tienes una cuenta?{" "}
+          <span
+            onClick={() => navigate("/login")}
+            className="text-blue-500 hover:underline cursor-pointer"
+          >
+            Inicia sesión aquí
+          </span>
+        </p>
       </div>
     </div>
   );
 }
 
-export default Login;
+export default Register;
